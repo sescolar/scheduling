@@ -5,7 +5,7 @@
 
 
 #define K 24            // multiple of 24 ?? why ??
-#define N_TASKS 10
+#define N_TASKS 20
 
 
 // The discussion below on consumption of Arduino strongly depends on the hardware
@@ -180,7 +180,8 @@ void GenerateTasks(void)
   
   for (i=1; i<N_TASKS; i++){
       /*Costo in mAh dei task*/
-      tasks[i].c_mAh = ceil(((((float)(i-1) / 10) * ACTIVE_SYSTEM_CONSUMPTION) + ((1 - (((float) (i-1)) / 10)) * IDLE_SYSTEM_CONSUMPTION)) * slotDurationPercentage);
+      tasks[i].c_mAh = ceil(((((float)(i-1) / 10) * ACTIVE_SYSTEM_CONSUMPTION) + 
+                       ((1 - (((float)(i-1))/ 10)) * IDLE_SYSTEM_CONSUMPTION)) * slotDurationPercentage);
   }
   /*Qualità massima e minima che si può assegnare al task dell'iterazione corrente*/
   unsigned int minQuality,maxQuality;
