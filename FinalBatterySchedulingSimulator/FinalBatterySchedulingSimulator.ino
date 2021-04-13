@@ -1,7 +1,16 @@
-/*Deve essere multiplo di 24!*/
-#define K 24
+
+/* 
+ * Rule for code: never use a block comment inside another block comment
+ */
+
+
+#define K 24            // multiple of 24 ?? why ??
 #define N_TASKS 10
-/*Consumo Arduino:
+
+
+// The discussion below on consumption of Arduino strongly depends on the hardware
+
+/* Consumo Arduino:
  * 40mAh IDLE
  * 90mAh ACTIVE
  *Consumo modulo WIFI ESP8266EX
@@ -12,40 +21,79 @@
  * Ossia si ha un costo orario : 22*(1-dc)+95*dc+340*dc/10+100*dc/10 = 22*(1-dc)+90*dc+440/10*dc =
  * 22*(1-dc)+124*dc (mAh)
  */
+
+
 #define ACTIVE_SYSTEM_CONSUMPTION 124
 #define IDLE_SYSTEM_CONSUMPTION 22
 #define BATTERY_SAMPLING 512
-/*Massima sovraproduzione,sottoproduzione di energy harvesting*/
+
+// Massima sovraproduzione,sottoproduzione di energy harvesting
+
 #define MAX_OVERPRODUCTION 20
 #define MAX_UNDERPRODUCTION 40
-/*Sunset e sunrise relativi a metà Ottobre*/
+
+// Sunset e sunrise relativi a metà Ottobre
+
 #define SUNSET 17
 #define SUNRISE 7
-/*Sunset e sunrise relativi a metà Giugno
+
+/*
+// Sunset e sunrise relativi a metà Giugno
+
 #define SUNSET 19
 #define SUNRISE 5
-/*Sunset e sunrise relativi a metà Dicembre
+
+// Sunset e sunrise relativi a metà Dicembre
+
 #define SUNSET 16
 #define SUNRISE 8
-/*Valori in mAh*/
-#define BMAX 2600
-/*10% della capacità della batteria*/
-#define BMIN 260
-/*circa [Bmax − Bmin]/2)*/
-#define B_INIT 1170
+*/
+
+#define BMAX 2600       // Values in mAh
+#define BMIN 260        // 10% of BMAX 
+
+#define B_INIT 1170     // why circa [Bmax − Bmin]/2) so low?? we can start with 90% of BMAX
+
 #define N_ITERATION 100
 #define SEED 123
-/*1 sse si ammettono variazioni nella curva di energy harvesting*/
-#define VARIATION 0
+
+#define VARIATION 0     // 1 sse we change the harvesting energy curve
 
 struct Task {
     int q_perc;
     unsigned int c_mAh;
 };
 
-int schedule(uint8_t nTasks, uint8_t nSlots,unsigned int BinitL, unsigned int E[K] ,uint8_t S[K][BATTERY_SAMPLING + 1],
-             int Q[2][BATTERY_SAMPLING + 1], struct Task tasks[N_TASKS], int mAh_per_lvl){
+struct Task tasks[N_TASKS];
 
+unsigned int E_h[24];       // Energy harvested oraria
+unsigned int E_h_v[24];     // Energy harvested oraria successiva a variazioni percentuali
+unsigned int E_s_mAh[K];    // Energy harvested finale per slot in mAh
+
+uint8_t S[K][BATTERY_SAMPLING+1];     // DP: Scheduling Table 
+int Q[2][BATTERY_SAMPLING+1];         // DP: Quality Table
+uint8_t NS[K];                        // Final Scheduling 
+uint8_t i,j,l;                        // Iterators
+
+
+/*Percentuale oraria di durata di uno slot*/
+const float slotDurationPercentage = 24 / (float) K;
+
+/*mAh corrispondenti a un livello di campionamento*/
+const int mAh_per_lvl = (float)BMAX/BATTERY_SAMPLING;
+
+/*Livello iniziale di batteria*/
+const unsigned int BinitL = (float)B_INIT / ((float)BMAX/BATTERY_SAMPLING);
+
+int schedule(uint8_t nTasks, 
+             uint8_t nSlots,
+             unsigned int BinitL, 
+             unsigned int E[K],
+             uint8_t S[K][BATTERY_SAMPLING + 1],
+             int Q[2][BATTERY_SAMPLING + 1], 
+             struct Task tasks[N_TASKS], 
+             int mAh_per_lvl)
+{
     int qmax,q;
     int b,Br,b_mAh;
     uint8_t idmax,t;
@@ -125,31 +173,12 @@ int checkFeasibility(uint8_t nSlots, uint8_t *NS, struct Task *tasks, unsigned i
     return 1;
 }
 
-struct Task tasks[N_TASKS];
-/*Energy harvested oraria*/
-unsigned int E_h[24];
-/*Energy harvested oraria successiva a variazioni percentuali*/
-unsigned int E_h_v[24];
-/*Energy harvested finale per slot in mAh*/
-unsigned int E_s_mAh[K];
-/*Tabella scheduling*/
-uint8_t S[K][BATTERY_SAMPLING+1];
-/*Tabella qualità*/
-int Q[2][BATTERY_SAMPLING+1];
-/*Scheduling finale*/
-uint8_t NS [K];
-/*Iteratori*/
-uint8_t i,j,l;
-/*Percentuale oraria di durata di uno slot*/
-const float slotDurationPercentage = 24 / (float) K;
-/*mAh corrispondenti a un livello di campionamento*/
-const int mAh_per_lvl = (float)BMAX/BATTERY_SAMPLING;
-/*Livello iniziale di batteria*/
-const unsigned int BinitL = floor((float)B_INIT/mAh_per_lvl);
 
-
-void setup() {
+void setup() 
+{
+#ifndef DESKTOP
   Serial.begin(9600);
+#endif
   srand(SEED);
   tasks[0].c_mAh=0;
   for(i = 1; i<N_TASKS; i++){
@@ -184,25 +213,29 @@ void setup() {
 
   /*Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh*/
   /*I valori fanno riferimenti ad energy harvesting per metà del mese di Ottobre*/
+
   E_h[7] = 38; E_h[8] = 118; E_h[9] = 186; E_h[10] = 239; E_h[11] = 272; E_h[12] = 283;
   E_h[13] = 272; E_h[14] = 239; E_h[15] = 186; E_h[16] = 118; E_h[17] = 38;
-  /*Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh
+  
+  /* Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh
   I valori fanno riferimenti ad energy harvesting per metà del mese di Giugno limitati alla massima produzione del pannello
   E_h[5]=75;E_h[6] = 256;
   E_h[7] = 436; E_h[8] =  E_h[5]=75;E_h[6] = 256; 520; E_h[9] = 520; E_h[10] = 520; E_h[11] = 520; E_h[12] = 520;
   E_h[13] = 520; E_h[14] = 520; E_h[15] = 520; E_h[16] = 520; E_h[17] = 436;
   E_h[18] = 256;E_h[19] = 75;
+  */
   /*Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh
   I valori fanno riferimenti ad energy harvesting per metà del mese di Dicembre
   E_h[8] = 22; E_h[9] = 57; E_h[10] = 84; E_h[11] = 100; E_h[12] = 106;
-  E_h[13] = 100; E_h[14] = 84; E_h[15] = 57; E_h[16] = 22;*/
+  E_h[13] = 100; E_h[14] = 84; E_h[15] = 57; E_h[16] = 22;
+  */
   
   printf("Ordine di stampa:\nQoS(lvl) , QoS (%%), QoS Test, B_res(i) (mAh), Test amm. (mAh), Scheduling(i)\n");
   printf("Parametri:\nK: %d N_TASKS: %d IDLE_SYSTEM_CONSUMPTION: %d ACTIVE_SYSTEM_CONSUMPTION: %d MAX_OVERPRODUCTION: %d \n"
          "MAX_UNDERPRODUCTION: %d SUNSET: %d SUNRISE: %d BATTERY_SAMPLING: %d SEED: %d N_ITERATION: %d VARIATION:%d \n",
          K,N_TASKS,IDLE_SYSTEM_CONSUMPTION,ACTIVE_SYSTEM_CONSUMPTION,MAX_OVERPRODUCTION,MAX_UNDERPRODUCTION,
          SUNSET,SUNRISE,BATTERY_SAMPLING,SEED,N_ITERATION,VARIATION);
-  printf("BMAX: %d (mAh) , BMIN: %d (mAh) , BINIT: %d (mAh) \n", BMAX,BMIN,B_INIT,BinitL);
+  printf("BMAX: %d (mAh) , BMIN: %d (mAh) , BINIT: %d (mAh) \n", BMAX,BMIN,B_INIT);
   printf("num_it,TotalHarvestedEnergy (mAh),QoS,QoS(%%),QoS Test,");
   for(i=0;i<=K;i++)
     printf("B(%d)(mAh),",i);
@@ -211,6 +244,7 @@ void setup() {
     printf("S(%d),",i);
   printf("T exec\n");
 }
+
 /*Valore ottimo di qualità trovato*/
 int optQ;
 /*Somma delle qualità percentuali dello scheduling trovato*/
