@@ -30,6 +30,6 @@ if __name__ == "__main__":
 	tasks_cost, tasks_quality = generateTasks(K,N)
 	print("{ ",end="")
 	for i,t in enumerate(zip(tasks_cost,tasks_quality)):
-		s = ", " if i!=N-1 else ""
-		print(t, s, end="")
-	print("}")
+		s = "{%d,%d}," % t if i!=N-1 else "{%d,%d}" % t
+		print(s,end="")
+	print(" }")
