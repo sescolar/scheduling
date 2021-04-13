@@ -19,8 +19,9 @@ unsigned long millis(void)
 
 int main(int argc, char *argv[])
 {
+  printf("Run Setup()\n");
   setup();
-  while (1) loop();
-
+  printf("Run loop() one time\n");
+  loop();
   return 1;
 }
