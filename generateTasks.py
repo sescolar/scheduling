@@ -1,6 +1,7 @@
 
 import numpy as np
 import random
+import sys
 
 random.seed(123)
 
@@ -24,9 +25,12 @@ def generateTasks(K,N):
 	return tasks_cost.astype(int), tasks_quality
 
 
-
-
 if __name__ == "__main__":
+	if len(sys.argv) == 1:
+		print("Generate Tasks parameters: [Slots], [Tasks]")
+		sys.exit(0)
+	K = int(sys.argv[1])
+	N = int(sys.argv[2])
 	tasks_cost, tasks_quality = generateTasks(K,N)
 	print("{ ",end="")
 	for i,t in enumerate(zip(tasks_cost,tasks_quality)):
