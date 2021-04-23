@@ -4,10 +4,10 @@
  */
 
 
-#define K 24            // multiple of 24 ?? why ??
+#define K 264            // multiple of 24 ?? why ??
 #define N_TASKS 20
-
-
+#define MONTH   5        // [0,11] Select the month         
+#define HOURS  24
 // The discussion below on consumption of Arduino strongly depends on the hardware
 
 /* Consumo Arduino:
@@ -31,23 +31,6 @@
 
 #define MAX_OVERPRODUCTION 20
 #define MAX_UNDERPRODUCTION 40
-
-// Sunset e sunrise relativi a metà Ottobre
-
-#define SUNSET 17
-#define SUNRISE 7
-
-/*
-// Sunset e sunrise relativi a metà Giugno
-
-#define SUNSET 19
-#define SUNRISE 5
-
-// Sunset e sunrise relativi a metà Dicembre
-
-#define SUNSET 16
-#define SUNRISE 8
-*/
 
 #define BMAX 2600       // Values in mAh
 #define BMIN 260        // 10% of BMAX 
@@ -74,6 +57,14 @@ uint8_t S[K][BATTERY_SAMPLING+1];     // DP: Scheduling Table
 int Q[2][BATTERY_SAMPLING+1];         // DP: Quality Table
 uint8_t NS[K];                        // Final Scheduling 
 uint8_t i,j,l;                        // Iterators
+
+struct MonthProduction { 
+    int sunrise;
+    int sunset;
+    int prod[HOURS];  // mAh
+};
+
+struct MonthProduction Mproduction; // Sunrise, sunset and energy production for a specific month
 
 
 /*Percentuale oraria di durata di uno slot*/
@@ -204,33 +195,60 @@ void GenerateTasks(void)
 
 void GeneratePanelProduction(void)
 {
+  switch(MONTH){
+    case 5: Mproduction.sunrise = 5;
+            Mproduction.sunset = 19;
+            // review the numbers
+            Mproduction.prod[5] = 75;
+            Mproduction.prod[6] = 256; 
+            Mproduction.prod[7] = 436; 
+            Mproduction.prod[8] = 520; 
+            Mproduction.prod[9] = 520;
+            Mproduction.prod[10] = 520; 
+            Mproduction.prod[11] = 520; 
+            Mproduction.prod[12] = 520; 
+            Mproduction.prod[13] = 520; 
+            Mproduction.prod[14] = 520; 
+            Mproduction.prod[15] = 520; 
+            Mproduction.prod[16] = 520; 
+            Mproduction.prod[17] = 436; 
+            Mproduction.prod[18] = 256;
+            Mproduction.prod[19] = 75;
+
+    case 9: Mproduction.sunrise = 7;
+            Mproduction.sunset = 17;
+            Mproduction.prod[7] = 38; 
+            Mproduction.prod[8] = 118; 
+            Mproduction.prod[9] = 186;
+            Mproduction.prod[10] = 239; 
+            Mproduction.prod[11] = 272; 
+            Mproduction.prod[12] = 283; 
+            Mproduction.prod[13] = 272; 
+            Mproduction.prod[14] = 239; 
+            Mproduction.prod[15] = 186; 
+            Mproduction.prod[16] = 118; 
+            Mproduction.prod[17] = 38; 
+                
+    case 11:  Mproduction.sunrise = 8;
+              Mproduction.sunset = 16;
+              Mproduction.prod[8] = 22; 
+              Mproduction.prod[9] = 57;
+              Mproduction.prod[10] = 84; 
+              Mproduction.prod[11] = 100; 
+              Mproduction.prod[12] = 106; 
+              Mproduction.prod[13] = 100; 
+              Mproduction.prod[14] = 84; 
+              Mproduction.prod[15] = 57; 
+              Mproduction.prod[16] = 22; 
+             
+    default: break;
+  }  
   /*Azzero le ore notturne*/
-  for (i=0; i<24; i++)
+  for (i=0; i<HOURS; i++)
       if((0<=i && i<SUNRISE) || (SUNSET<i && i<=23)) {
-          E_h[i] = 0;
+          Mproduction.prod[i] = 0;
       }
-  for (i=0; i<K; i++) E_s_mAh[i] = 0;
-
-  /*Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh*/
-  /*I valori fanno riferimenti ad energy harvesting per metà del mese di Ottobre*/
-
-  E_h[7] = 38; E_h[8] = 118; E_h[9] = 186; E_h[10] = 239; E_h[11] = 272; E_h[12] = 283;
-  E_h[13] = 272; E_h[14] = 239; E_h[15] = 186; E_h[16] = 118; E_h[17] = 38;
-  
-  /* Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh
-  I valori fanno riferimenti ad energy harvesting per metà del mese di Giugno limitati alla massima produzione del pannello
-  E_h[5]=75;E_h[6] = 256;
-  E_h[7] = 436; E_h[8] =  E_h[5]=75;E_h[6] = 256; 520; E_h[9] = 520; E_h[10] = 520; E_h[11] = 520; E_h[12] = 520;
-  E_h[13] = 520; E_h[14] = 520; E_h[15] = 520; E_h[16] = 520; E_h[17] = 436;
-  E_h[18] = 256;E_h[19] = 75;
-  */
-  /*Inserisco manualmente i valori presi dal foglio di calcolo, valori in mAh
-  I valori fanno riferimenti ad energy harvesting per metà del mese di Dicembre
-  E_h[8] = 22; E_h[9] = 57; E_h[10] = 84; E_h[11] = 100; E_h[12] = 106;
-  E_h[13] = 100; E_h[14] = 84; E_h[15] = 57; E_h[16] = 22;
-  */
 }
-
 void PrintParameters(void)
 {
   
