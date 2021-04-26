@@ -4,10 +4,9 @@
  */
 
 
-#define K 264            // multiple of 24 ?? why ??
+#define K 24            // multiple of 24 ?? why ??
 #define N_TASKS 20
-#define MONTH   5        // [0,11] Select the month         
-#define HOURS  24
+
 // The discussion below on consumption of Arduino strongly depends on the hardware
 
 /* Consumo Arduino:
@@ -58,13 +57,32 @@ int Q[2][BATTERY_SAMPLING+1];         // DP: Quality Table
 uint8_t NS[K];                        // Final Scheduling 
 uint8_t i,j,l;                        // Iterators
 
+
+// Added for GenerateSolarProduction
+#define HOURS         24
+#define MONTHS        12
+#define LATITUDE      40.42    // latitude in Madrid
+#define PINUMBER      3.1415926535897932384626433832795
+#define DEGREES       23.45
+#define SLOTSPERHOUR  (K/24)
+#define STEPS         (SLOTSPERHOUR * HOURS)
+#define ETA           0.128        // energy ETA of the solar cell
+#define VLD           5.82         // specific voltage of load
+#define SURFACE       0.034875     // surface of the solar cell (m2)
+
+uint8_t daysPerMonth[MONTHS] = {31,28,31,30,31,30,31,31,30,31,30,31}; //days per month
+float H[STEPS];
+float cos_z[STEPS];
+
 struct MonthProduction { 
-    int sunrise;
-    int sunset;
-    int prod[HOURS];  // mAh
+    unsigned int sunrise;
+    unsigned int sunset;
+    uint8_t days;
+    unsigned int irradiance;   // KWh/m2/day
+    double prod[STEPS];  // wh
 };
 
-struct MonthProduction Mproduction; // Sunrise, sunset and energy production for a specific month
+struct MonthProduction Mproduction; // Sunrise, sunset, irradiance, and energy production for a specific month
 
 
 /*Percentuale oraria di durata di uno slot*/
@@ -192,69 +210,108 @@ void GenerateTasks(void)
 }
 
 // Soledad, this function is a real mess, please remove unused data
+float deg2rad(float degrees){
+  return ((degrees * 71) / 4068);
+}
 
-void GeneratePanelProduction(void)
+void zenit(uint8_t day, uint8_t month){
+  float delta;
+  float c1;
+  unsigned int accumDays = 0;
+  float next = 0.0;  
+  unsigned int n;
+
+  accumDays = day;
+  for (i=0;i<month;i++){
+      accumDays = accumDays + daysPerMonth[i];
+  }
+  
+  delta = deg2rad(DEGREES) * sin(2*PI*((accumDays+284)/366));
+  c1 = ((((4*-deg2rad(3.7038))*100)/60)/100);
+
+  for (i=0;i<STEPS;i++){
+      H[i] =  deg2rad(15 * (next + c1 - 12.0));
+      
+      printf("%2.2f\t",H[i]);
+      next = next + (1/SLOTSPERHOUR);
+  }
+  printf("\n");
+  next = 0.0;
+  for (i=0;i<STEPS;i++){
+      cos_z[i] = sin(deg2rad(LATITUDE)) * sin(delta) + cos(deg2rad(LATITUDE)) * cos(delta) * cos(H[i]);
+      printf("%2.2f\t",cos[i]);
+      next = next + (1/SLOTSPERHOUR);
+  }
+  printf("\n");
+}
+
+void GeneratePanelProduction(uint8_t month)
 {
-  switch(MONTH){
-    case 5: Mproduction.sunrise = 5;
-            Mproduction.sunset = 19;
-            // review the numbers
-            Mproduction.prod[5] = 75;
-            Mproduction.prod[6] = 256; 
-            Mproduction.prod[7] = 436; 
-            Mproduction.prod[8] = 520; 
-            Mproduction.prod[9] = 520;
-            Mproduction.prod[10] = 520; 
-            Mproduction.prod[11] = 520; 
-            Mproduction.prod[12] = 520; 
-            Mproduction.prod[13] = 520; 
-            Mproduction.prod[14] = 520; 
-            Mproduction.prod[15] = 520; 
-            Mproduction.prod[16] = 520; 
-            Mproduction.prod[17] = 436; 
-            Mproduction.prod[18] = 256;
-            Mproduction.prod[19] = 75;
+//DIrradiance = (2030.0,2960.0,4290.0,5110.0,5950.0,7090.0,7200.0,6340.0,4870.0,3130.0,2130.0,1700.0)
+  int accumDays = 0;
+  switch(month){
+    case 0: Mproduction.sunrise = 8;
+            Mproduction.sunset = 16;
+            Mproduction.irradiance = 2030;
+            
+    case 1: Mproduction.sunrise = 8;
+            Mproduction.sunset = 16;
+            Mproduction.irradiance = 2960;
+            
+    case 2: Mproduction.sunrise = 8;
+            Mproduction.sunset = 16;
+            Mproduction.irradiance = 4290;
+            
+    case 3: Mproduction.sunrise = 8;
+            Mproduction.sunset = 18;
+            Mproduction.irradiance = 5110;
+            
+    case 4: Mproduction.sunrise = 7;
+            Mproduction.sunset = 18;
+            Mproduction.irradiance = 5950;
 
-    case 9: Mproduction.sunrise = 7;
+    case 5: Mproduction.sunrise = 7;
+            Mproduction.sunset = 20;
+            Mproduction.irradiance = 7090;
+
+    case 6: Mproduction.sunrise = 7;
+            Mproduction.sunset = 20;
+            Mproduction.irradiance = 7200;
+            
+    case 7: Mproduction.sunrise = 7;
+            Mproduction.sunset = 20;
+            Mproduction.irradiance = 6340;
+            
+    case 8: Mproduction.sunrise = 7;
+            Mproduction.sunset = 19;
+            Mproduction.irradiance = 4870;
+            
+    case 9: Mproduction.sunrise = 8;
             Mproduction.sunset = 17;
-            Mproduction.prod[7] = 38; 
-            Mproduction.prod[8] = 118; 
-            Mproduction.prod[9] = 186;
-            Mproduction.prod[10] = 239; 
-            Mproduction.prod[11] = 272; 
-            Mproduction.prod[12] = 283; 
-            Mproduction.prod[13] = 272; 
-            Mproduction.prod[14] = 239; 
-            Mproduction.prod[15] = 186; 
-            Mproduction.prod[16] = 118; 
-            Mproduction.prod[17] = 38; 
-                
-    case 11:  Mproduction.sunrise = 8;
-              Mproduction.sunset = 16;
-              Mproduction.prod[8] = 22; 
-              Mproduction.prod[9] = 57;
-              Mproduction.prod[10] = 84; 
-              Mproduction.prod[11] = 100; 
-              Mproduction.prod[12] = 106; 
-              Mproduction.prod[13] = 100; 
-              Mproduction.prod[14] = 84; 
-              Mproduction.prod[15] = 57; 
-              Mproduction.prod[16] = 22; 
+            Mproduction.irradiance = 3130;
+            
+    case 10: Mproduction.sunrise = 8;
+            Mproduction.sunset = 16;
+            Mproduction.irradiance = 2130;             
+    case 11:  
+            Mproduction.sunrise = 8;
+            Mproduction.sunset = 16;
+            Mproduction.irradiance = 1700; 
              
     default: break;
-  }  
-  /*Azzero le ore notturne*/
-  for (i=0; i<HOURS; i++)
-      if((0<=i && i<SUNRISE) || (SUNSET<i && i<=23)) {
-          Mproduction.prod[i] = 0;
-      }
+  }
+  Mproduction.days = daysPerMonth[i]; 
+  zenit(1, month);
+  for(i=0;i<STEPS;i++){
+        Mproduction.prod[i] = cos_z[i] *  Mproduction.irradiance * ETA * SURFACE; 
+  }
 }
 void PrintParameters(void)
 {
   
   printf("Ordine di stampa:\nQoS(lvl) , QoS (%%), QoS Test, B_res(i) (mAh), Test amm. (mAh), Scheduling(i)\n");
   printf("Parametri:\nK: %d\n N_TASKS: %d\n IDLE_SYSTEM_CONSUMPTION: %d\n ACTIVE_SYSTEM_CONSUMPTION: %d\n MAX_OVERPRODUCTION: %d\n"
-         " MAX_UNDERPRODUCTION: %d\n SUNSET: %d\n SUNRISE: %d\n BATTERY_SAMPLING: %d\n SEED: %d\n N_ITERATION: %d\n VARIATION:%d\n",K,N_TASKS,IDLE_SYSTEM_CONSUMPTION,ACTIVE_SYSTEM_CONSUMPTION,MAX_OVERPRODUCTION,MAX_UNDERPRODUCTION,SUNSET,SUNRISE,BATTERY_SAMPLING,SEED,N_ITERATION,VARIATION);
+         " MAX_UNDERPRODUCTION: %d\n SUNSET: %d\n SUNRISE: %d\n BATTERY_SAMPLING: %d\n SEED: %d\n N_ITERATION: %d\n VARIATION:%d\n",K,N_TASKS,IDLE_SYSTEM_CONSUMPTION,ACTIVE_SYSTEM_CONSUMPTION,MAX_OVERPRODUCTION,MAX_UNDERPRODUCTION,Mproduction.sunset,Mproduction.sunrise ,BATTERY_SAMPLING,SEED,N_ITERATION,VARIATION);
   printf("BMAX: %4d (mAh) , BMIN: %4d (mAh) , BINIT: %4d (mAh) \n", BMAX,BMIN,B_INIT);
  
 //  printf("num_it,TotalHarvestedEnergy (mAh),QoS,QoS(%%),QoS Test,");
@@ -270,7 +327,7 @@ void setup()
 #endif
   srand(SEED);
   GenerateTasks();
-  GeneratePanelProduction();
+  GeneratePanelProduction(0);
   PrintParameters();
 }
 
@@ -287,7 +344,7 @@ unsigned long t1,t2;        // Timers to measure execution time, t exec
 void PredictEnergy()
 {
   for(i=0; i<24; i++) {
-    if (SUNRISE <= i && i <= SUNSET) {
+    if (Mproduction.sunrise <= i && i <= Mproduction.sunset) {
         /*Utilizzato per avere una curva senza variazioni*/
         if (!VARIATION) coin = 2; else coin = rand() % 3;
         switch (coin) {
