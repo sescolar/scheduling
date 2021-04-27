@@ -183,18 +183,18 @@ void GenerateTasks(void)
       tasks[i].c_mAh = ceil(((((float)(i-1) / 10) * ACTIVE_SYSTEM_CONSUMPTION) + 
                        ((1 - (((float)(i-1))/ 10)) * IDLE_SYSTEM_CONSUMPTION)) * slotDurationPercentage);
   }
-  /*Qualità massima e minima che si può assegnare al task dell'iterazione corrente*/
+  /* Qualità massima e minima che si può assegnare al task dell'iterazione corrente */
   unsigned int minQuality,maxQuality;
   
   tasks[1].q_perc = 7;
-  for(i = 2; i<N_TASKS-1; i++){
+  for(i = 2; i<N_TASKS; i++){
       /*Devono essere distanziata almeno di 5, per non collidere*/
       minQuality = max((i-1)*12, tasks[i-1].q_perc + 7);
       maxQuality = i * 12;
       /* Qualità in livelli di qualità */
       tasks[i].q_perc = rand() % (maxQuality + 1 - minQuality) + minQuality;
   }
-  tasks[N_TASKS-1].q_perc = 100;
+  
   for(i = 0; i<N_TASKS; i++)
       printf("Task %d costo x slot(mAh) : %2d , qualita : %3d %% \n",
               i,tasks[i].c_mAh, tasks[i].q_perc);
