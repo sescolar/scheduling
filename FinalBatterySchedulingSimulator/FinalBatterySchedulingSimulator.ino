@@ -6,7 +6,8 @@
  */
 
 #include <Arduino.h>
-#define K 24            // multiple of 24 ?? why ??
+#include <assert.h>
+#define K 48            // multiple of 24 ?? why ??
 #define N_TASKS 10
 
 
@@ -27,7 +28,8 @@
 
 #define ACTIVE_SYSTEM_CONSUMPTION 124
 #define IDLE_SYSTEM_CONSUMPTION 22
-#define BATTERY_SAMPLING 512
+#define BATTERY_SAMPLING 1024
+
 
 // Max. over/underproduction 
 #define MAX_OVERPRODUCTION 20
@@ -37,11 +39,13 @@
 /*#define SUNSET 20
 #define SUNRISE 7
 
-// Sunset and sunrise in September
-/*#define SUNSET 20
-#define SUNRISE 8
 
+
+// Sunset and sunrise in September
+#define SUNSET 20
+#define SUNRISE 8
 */
+
 // Sunset and sunrise in October
 #define SUNSET 19
 #define SUNRISE 8
@@ -78,11 +82,14 @@ int i,j,l;                              // Iterators
 
 /*mAh correspondiente a un nivel de muestreo*/
 const int mAh_per_lvl = (float)BMAX/BATTERY_SAMPLING;
-
 /*Initial battery level*/
-const unsigned int BinitL = (float)B_INIT / ((float)BMAX/BATTERY_SAMPLING);
+const unsigned int BinitL = floor((float)B_INIT/mAh_per_lvl);
+const int bmaxINT = mAh_per_lvl*BATTERY_SAMPLING;
 
-int schedule(uint8_t nTasks, 
+
+
+
+/*int schedule(uint8_t nTasks, 
              uint8_t nSlots,
              unsigned int BinitL, 
              unsigned int E[K],
@@ -99,7 +106,6 @@ int schedule(uint8_t nTasks,
         for(b=0 ;b<BATTERY_SAMPLING+1; b++){
             qmax=-1;
             idmax=0;
-            /*mAh corrispondente al livello di batteria corrente approssimato per difetto*/
             b_mAh = b * mAh_per_lvl;
             for(t=0;t<nTasks;t++){
                 Br = min(b_mAh - tasks[t].c_mAh + E[i], BMAX);
@@ -110,9 +116,6 @@ int schedule(uint8_t nTasks,
                 else{
                     if(i!=(int)nSlots-1) {
                         if (Br >= BMIN) {
-                            /*Considero allo slot successivo un livello di batteria approssimato per difetto per garantire l'ammissibilit?*/
-                            
-                            
                             q = Q[(i + 1)%2][Br/mAh_per_lvl];
                         //  printf("Q[%d][%d]=%d \n",(i+1)%2,Br/mAh_per_lvl,q);
                             
@@ -125,7 +128,6 @@ int schedule(uint8_t nTasks,
                 }
             }
             Q[i%2][b] = qmax;
-            /*Contiene l'indice del task +1 per usare unsigned int*/
             S[i][b] = idmax;
         }
     }
@@ -134,6 +136,52 @@ int schedule(uint8_t nTasks,
     else
         return Q[(nSlots+1)%2][BinitL];
 }
+*/
+
+int schedule(unsigned int BinitL, unsigned int E[K])
+{
+    int qmax,q;
+    int b,Br,b_mAh;
+    uint8_t idmax,t;
+    
+    for(int i=K-1; i>=0; i--) {
+        for(b=0; b<BATTERY_SAMPLING+1; b++) {
+            qmax = -1;
+            idmax = 0;
+            /* mAh corrispondente al livello di batteria corrente approssimato per difetto */
+            b_mAh = b * mAh_per_lvl;
+            
+            for (t=0; t<N_TASKS; t++) {
+                Br = min(b_mAh - tasks[t].c_mAh + E[i], bmaxINT);
+                
+                if (i == K-1 && (Br >= B_INIT) && qmax < tasks[t].q_perc) {
+                    qmax = tasks[t].q_perc;
+                    idmax = t+1;
+                } else if (i != K-1 && Br >= BMIN) {
+                    /* Considero allo slot successivo un livello di batteria approssimato 
+                       per difetto per garantire l'ammissibilit? */
+                    int level = Br/mAh_per_lvl;
+                    assert(level<BATTERY_SAMPLING+1);
+                    q = Q[(i + 1)%2][level];                    
+                    if (q != -1 && (q + tasks[t].q_perc) > qmax) {
+                        qmax = q + tasks[t].q_perc;
+                        idmax = t+1;
+                    }
+                }
+            }
+            Q[i%2][b] = qmax;
+            /* Contiene l'indice del task +1 per usare unsigned int*/
+            S[i][b] = idmax;
+            //printf("(%d,%d) ",qmax,idmax);
+        }
+        
+    }
+    if (K%2 == 0)
+        return Q[K%2][BinitL];
+    else
+        return Q[(K+1)%2][BinitL];
+}
+
 /*Chiamare solo se opt!=-1, prima era uint8_t S[K][BMAX+1]*/
 void scheduleTasks(uint8_t S[K][BATTERY_SAMPLING+1], uint8_t NS[K], uint8_t nSlots, unsigned int BinitL, struct Task tasks[K], unsigned int E[K], int mAh_per_lvl){
 
@@ -289,22 +337,22 @@ void loop() {
       for(i=0; i<K; i++) totalEnergyHarvested += E_s_mAh[i];
       printf("\tEnergyHarvested = %4d\n", totalEnergyHarvested);
        
-      t1 = millis();
-
+      
       initializeMatrixS(S,K,BATTERY_SAMPLING);
       initializeMatrixQ(Q,2,BATTERY_SAMPLING);
-      
-      printf("\tschedule");
-      optQ = schedule(N_TASKS, K, BinitL, E_s_mAh, S, Q, tasks, mAh_per_lvl);
-      printf("\tOptimalQuality = %4d\n", optQ);
+
+      t1 = millis();
+      //optQ = schedule(N_TASKS, K, BinitL, E_s_mAh, S, Q, tasks, mAh_per_lvl);
+      optQ = schedule(BinitL, E_s_mAh);   
+      scheduleTasks(S, NS, K, BinitL, tasks, E_s_mAh, mAh_per_lvl);
+
+      t2 = millis();
       
       if (optQ != -1) {
-          scheduleTasks(S, NS, K, BinitL, tasks, E_s_mAh, mAh_per_lvl);
-          printf("\tScheduling: [");
+          printf("\tOptimalQuality = %4d\n", optQ);
           for(i=0; i<K-1; i++) printf("%d,",NS[i]-1);
           printf("%d]\n",NS[K-1]-1);
       
-          t2 = millis();
           totalQualityPerc = 0;
           for (i = 0; i < K; i++) totalQualityPerc += tasks[NS[i] - 1].q_perc;
           printf("\tTotalQPercentage = %f\n", (float)totalQualityPerc / K);
