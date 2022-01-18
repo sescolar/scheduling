@@ -5,7 +5,7 @@
  */
 
 #include <Arduino.h>
-#define K 48            // multiple of 24 ?? why ??
+#define K 24            // multiple of 24 ?? why ??
 #define N_TASKS 10
 
 
@@ -33,18 +33,19 @@
 #define MAX_UNDERPRODUCTION 40
 
 // Sunset and sunrise in August
-/*#define SUNSET 20
+#define SUNSET 20
 #define SUNRISE 7
-*/
+
 
 // Sunset and sunrise in September
 /*#define SUNSET 20
 #define SUNRISE 8
-*/
+
 
 // Sunset and sunrise in October
 #define SUNSET 19
 #define SUNRISE 8
+*/
 
 #define BMAX 2600               // Values in mAh
 #define BMIN (BMAX*0.1)         // 10% of BMAX 
@@ -57,8 +58,8 @@
 #define VARIATION 0     // 1 sse we change the harvesting energy curve
 
 struct Task {
-    int q_perc;
-    int q_lvl;
+    uint8_t q_perc;
+    uint8_t q_lvl;
     unsigned int c_mAh;
 };
 
@@ -243,13 +244,13 @@ void GeneratePanelProduction(void)
 
   /*Energy daily solar production in mAh*/
   // August
-  //E_h[7] = 3; E_h[8] = 45; E_h[9] = 133; E_h[10] = 215; E_h[11] = 285; E_h[12] = 327; E_h[13] = 339; E_h[14] = 322; E_h[15] = 255; E_h[16] = 60; E_h[17] = 66; E_h[18] = 63; E_h[19] = 23; E_h[20] = 9;
+  E_h[7] = 3; E_h[8] = 45; E_h[9] = 133; E_h[10] = 215; E_h[11] = 285; E_h[12] = 327; E_h[13] = 339; E_h[14] = 322; E_h[15] = 255; E_h[16] = 60; E_h[17] = 66; E_h[18] = 63; E_h[19] = 23; E_h[20] = 9;
 
   // September
   //E_h[8] = 24; E_h[9] = 107; E_h[10] = 202; E_h[11] = 270; E_h[12] = 313; E_h[13] = 316; E_h[14] = 310; E_h[15] = 251; E_h[16] = 98; E_h[17] = 45; E_h[18] = 37; E_h[19] = 15; E_h[20] = 2; E_h[20] = 9;
 
   // October
-  E_h[8] = 19; E_h[9] = 110; E_h[10] = 224; E_h[11] = 285; E_h[12] = 335; E_h[13] = 350; E_h[14] = 331; E_h[15] = 283; E_h[16] = 134; E_h[17] = 20; E_h[18] = 18; E_h[19] = 8; 
+  //E_h[8] = 19; E_h[9] = 110; E_h[10] = 224; E_h[11] = 285; E_h[12] = 335; E_h[13] = 350; E_h[14] = 331; E_h[15] = 283; E_h[16] = 134; E_h[17] = 20; E_h[18] = 18; E_h[19] = 8; 
 }
 
 
@@ -323,7 +324,6 @@ void loop() {
       
       t1 = millis();
       relaxedOptQ = schedule(N_TASKS, K, MAX_QUALITY_LVL, E_s_mAh, S, B, tasks);
-      printf("\tRelaxedOptQ=%d\n",relaxedOptQ);
       optQ = solution(B[(K-1)%2],S,K,NS,tasks,relaxedOptQ);
       t2=millis();
       
