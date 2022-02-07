@@ -5,7 +5,7 @@
  */
 
 #include <Arduino.h>
-#define K 24            // multiple of 24 ?? why ??
+#define K 48            // multiple of 24 ?? why ??
 #define N_TASKS 10
 
 
@@ -25,7 +25,7 @@
 
 
 #define ACTIVE_SYSTEM_CONSUMPTION 124
-#define IDLE_SYSTEM_CONSUMPTION 22
+#define IDLE_SYSTEM_CONSUMPTION 16
 #define MAX_QUALITY_LVL 50
 
 // Max. over/underproduction 
@@ -33,19 +33,19 @@
 #define MAX_UNDERPRODUCTION 40
 
 // Sunset and sunrise in August
-#define SUNSET 20
+/*#define SUNSET 20
 #define SUNRISE 7
 
 
 // Sunset and sunrise in September
-/*#define SUNSET 20
+#define SUNSET 20
 #define SUNRISE 8
-
+*/
 
 // Sunset and sunrise in October
 #define SUNSET 19
 #define SUNRISE 8
-*/
+
 
 #define BMAX 2600               // Values in mAh
 #define BMIN (BMAX*0.1)         // 10% of BMAX 
@@ -210,28 +210,30 @@ int checkFeasibility(uint8_t nSlots, uint8_t *NS, struct Task *tasks, unsigned i
 void GenerateTasks()
 {
     unsigned int minQuality,maxQuality;
-    unsigned int step;
     tasks[0].c_mAh=1; 
+    tasks[0].q_perc=1;
+    tasks[0].q_lvl=1;
     for(i = 1; i<N_TASKS; i++){
         /*Cost in mAh of the task*/
         tasks[i].c_mAh = ceil(((((float)(i-1.0) / 10.0) * ACTIVE_SYSTEM_CONSUMPTION) +
                             ((1 - (((float) (i-1.0)) / 10.0)) * IDLE_SYSTEM_CONSUMPTION)) * slotDurationPercentage);
     }
-    
-    step= 100/N_TASKS;
-    tasks[0].q_perc=1;
-    for(i = 1; i<N_TASKS-1; i++){
-        minQuality=tasks[i-1].q_perc+1;
-        maxQuality= minQuality+step;
-        tasks[i].q_perc = random(minQuality+(step/2),maxQuality+1);
+    tasks[0].q_perc=7;
+    tasks[1].q_lvl=floor(((float)(tasks[1].q_perc)) / ((float)100 / MAX_QUALITY_LVL));
+    for(i = 2; i<N_TASKS-1; i++){
+        /*Devono essere distanziata almeno di 5, per non collidere*/
+        minQuality=max((i - 1) * 12, tasks[i - 1].q_perc + 7);
+        maxQuality= i * 12;
+        /*Qualità in livelli di qualità*/
+        tasks[i].q_perc = rand() % (maxQuality + 1 - minQuality) + minQuality;
         tasks[i].q_lvl = floor(((float)(tasks[i].q_perc)) / ((float)100 / MAX_QUALITY_LVL));
     }
     tasks[N_TASKS-1].q_lvl=MAX_QUALITY_LVL;
     tasks[N_TASKS-1].q_perc=100;
 
     for(i = 0; i<N_TASKS; i++)
-      printf("Task %d cost per slot(mAh) : %d , quality : %d, quality level: %d \n", i,tasks[i].c_mAh, tasks[i].q_perc, tasks[i].q_lvl);
-
+       printf("Task %2d costo x slot(mAh) : %2d , qualita : %3d %% qualita (lvl) :%3d\n", 
+                i,tasks[i].c_mAh, tasks[i].q_perc, tasks[i].q_lvl);
 }
 void GeneratePanelProduction(void)
 {
@@ -244,13 +246,13 @@ void GeneratePanelProduction(void)
 
   /*Energy daily solar production in mAh*/
   // August
-  E_h[7] = 3; E_h[8] = 45; E_h[9] = 133; E_h[10] = 215; E_h[11] = 285; E_h[12] = 327; E_h[13] = 339; E_h[14] = 322; E_h[15] = 255; E_h[16] = 60; E_h[17] = 66; E_h[18] = 63; E_h[19] = 23; E_h[20] = 9;
+  //E_h[7] = 3; E_h[8] = 45; E_h[9] = 133; E_h[10] = 215; E_h[11] = 285; E_h[12] = 327; E_h[13] = 339; E_h[14] = 322; E_h[15] = 255; E_h[16] = 60; E_h[17] = 66; E_h[18] = 63; E_h[19] = 23; E_h[20] = 9;
 
   // September
   //E_h[8] = 24; E_h[9] = 107; E_h[10] = 202; E_h[11] = 270; E_h[12] = 313; E_h[13] = 316; E_h[14] = 310; E_h[15] = 251; E_h[16] = 98; E_h[17] = 45; E_h[18] = 37; E_h[19] = 15; E_h[20] = 2; E_h[20] = 9;
 
   // October
-  //E_h[8] = 19; E_h[9] = 110; E_h[10] = 224; E_h[11] = 285; E_h[12] = 335; E_h[13] = 350; E_h[14] = 331; E_h[15] = 283; E_h[16] = 134; E_h[17] = 20; E_h[18] = 18; E_h[19] = 8; 
+  E_h[8] = 19; E_h[9] = 110; E_h[10] = 224; E_h[11] = 285; E_h[12] = 335; E_h[13] = 350; E_h[14] = 331; E_h[15] = 283; E_h[16] = 134; E_h[17] = 20; E_h[18] = 18; E_h[19] = 8; 
 }
 
 
@@ -332,7 +334,6 @@ void loop() {
           printf("%d,",optQ);
           for (i = 0; i < K; i++){
               totalQualityPerc += tasks[NS[i] - 1].q_perc;
-              printf("quality level=%d\n",tasks[NS[i] - 1].q_perc);
           } 
           printf("\tTotalQPercentage = %f\n", (float)(totalQualityPerc /(float) K));
           
