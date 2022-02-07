@@ -18,7 +18,7 @@
  * 90mAh ACTIVE
  *Consumo modulo WIFI ESP8266EX
  * 340mAh TX 802.11b, CCK 11Mbps, POUT=+17 dBm (Siccome nel datasheet ? considerato 50% duty cycle
- * 100mAh Rx 802.11b, 1024 bytes packet length , –80 dBm (Stessa motivazione)
+ * 100mAh Rx 802.11b, 1024 bytes packet length , ï¿½80 dBm (Stessa motivazione)
  * ? stato considerato che il modulo WIFI stia acceso il 20% del duty cycle dell'intero sistema alternando
  * in parti uguali ricezione e trasmissione
  * Ossia si ha un costo orario : 22*(1-dc)+95*dc+340*dc/10+100*dc/10 = 22*(1-dc)+90*dc+440/10*dc =
@@ -27,8 +27,8 @@
 
 
 #define ACTIVE_SYSTEM_CONSUMPTION 124
-#define IDLE_SYSTEM_CONSUMPTION 22
-#define BATTERY_SAMPLING 1024
+#define IDLE_SYSTEM_CONSUMPTION 16
+#define BATTERY_SAMPLING 1540
 
 
 // Max. over/underproduction 
@@ -71,7 +71,7 @@ struct Task tasks[N_TASKS];
 unsigned int E_h[24];       // Hourly Energy harvested 
 unsigned int E_h_v[24];     // HOurly Energy harvested uccessiva a variazioni percentuali
 unsigned int E_s_mAh[K];    // Final Energy harvested per slot in mAh
-const float slotDurationPercentage = 24 / (float) K;    /*Porcentaje horario de la duración de las franjas horarias*/
+const float slotDurationPercentage = 24 / (float) K;    /*Porcentaje horario de la duraciï¿½n de las franjas horarias*/
 uint8_t pos;
 
 uint8_t S[K][BATTERY_SAMPLING+1];     // DP: Scheduling Table 
@@ -81,67 +81,19 @@ int i,j,l;                              // Iterators
 
 
 /*mAh correspondiente a un nivel de muestreo*/
-const int mAh_per_lvl = (float)BMAX/BATTERY_SAMPLING;
+const float mAh_per_lvl = (float)BMAX/BATTERY_SAMPLING;
+#define level_to_mah(l)  short((l)*(mAh_per_lvl)) 
+#define mah_to_level(b)  short((b)/(mAh_per_lvl)) 
+
 /*Initial battery level*/
 const unsigned int BinitL = floor((float)B_INIT/mAh_per_lvl);
 const int bmaxINT = mAh_per_lvl*BATTERY_SAMPLING;
-
-
-
-
-/*int schedule(uint8_t nTasks, 
-             uint8_t nSlots,
-             unsigned int BinitL, 
-             unsigned int E[K],
-             uint8_t S[K][BATTERY_SAMPLING + 1],
-             int Q[2][BATTERY_SAMPLING + 1], 
-             struct Task tasks[N_TASKS], 
-             int mAh_per_lvl)
-{
-    int qmax,q;
-    int b,Br,b_mAh;
-    uint8_t idmax,t;
-
-    for(int i = nSlots-1; i>=0 ;i--){
-        for(b=0 ;b<BATTERY_SAMPLING+1; b++){
-            qmax=-1;
-            idmax=0;
-            b_mAh = b * mAh_per_lvl;
-            for(t=0;t<nTasks;t++){
-                Br = min(b_mAh - tasks[t].c_mAh + E[i], BMAX);
-                if(i == nSlots-1 && (Br>=B_INIT) && qmax < tasks[t].q_perc){
-                    qmax = tasks[t].q_perc;
-                    idmax = t+1;
-                }
-                else{
-                    if(i!=(int)nSlots-1) {
-                        if (Br >= BMIN) {
-                            q = Q[(i + 1)%2][Br/mAh_per_lvl];
-                        //  printf("Q[%d][%d]=%d \n",(i+1)%2,Br/mAh_per_lvl,q);
-                            
-                            if (q != -1 && (q + tasks[t].q_perc) > qmax) {
-                                qmax = q + tasks[t].q_perc;
-                                idmax = t+1;
-                            }
-                        }
-                    }
-                }
-            }
-            Q[i%2][b] = qmax;
-            S[i][b] = idmax;
-        }
-    }
-    if (nSlots%2==0)
-        return Q[nSlots%2][BinitL];
-    else
-        return Q[(nSlots+1)%2][BinitL];
-}
-*/
 
 int schedule(unsigned int BinitL, unsigned int E[K])
 {
     int qmax,q;
     int b,Br,b_mAh;
+    int level;
     uint8_t idmax,t;
     
     for(int i=K-1; i>=0; i--) {
@@ -149,7 +101,8 @@ int schedule(unsigned int BinitL, unsigned int E[K])
             qmax = -1;
             idmax = 0;
             /* mAh corrispondente al livello di batteria corrente approssimato per difetto */
-            b_mAh = b * mAh_per_lvl;
+            //b_mAh = b * mAh_per_lvl;
+            b_mAh = level_to_mah(b); 
             
             for (t=0; t<N_TASKS; t++) {
                 Br = min(b_mAh - tasks[t].c_mAh + E[i], bmaxINT);
@@ -160,7 +113,8 @@ int schedule(unsigned int BinitL, unsigned int E[K])
                 } else if (i != K-1 && Br >= BMIN) {
                     /* Considero allo slot successivo un livello di batteria approssimato 
                        per difetto per garantire l'ammissibilit? */
-                    int level = Br/mAh_per_lvl;
+                    //level = Br/mAh_per_lvl;
+                    level = mah_to_level(Br);
                     assert(level<BATTERY_SAMPLING+1);
                     q = Q[(i + 1)%2][level];                    
                     if (q != -1 && (q + tasks[t].q_perc) > qmax) {
@@ -222,7 +176,6 @@ void GenerateTasks()
 {
  
     unsigned int minQuality,maxQuality;
-    unsigned int step;
     tasks[0].c_mAh=1; 
     for(i = 1; i<N_TASKS; i++){
         /*Cost in mAh of the task*/
@@ -230,17 +183,18 @@ void GenerateTasks()
                             ((1 - (((float) (i-1.0)) / 10.0)) * IDLE_SYSTEM_CONSUMPTION)) * slotDurationPercentage);
     }
     
-    step= 100/N_TASKS;
     tasks[0].q_perc=1;
-    for(i = 1; i<N_TASKS-1; i++){
-        minQuality=tasks[i-1].q_perc+1;
-        maxQuality= minQuality+step;
-        tasks[i].q_perc = random(minQuality+(step/2),maxQuality+1);
+    tasks[1].q_perc=7;
+    for(i = 2; i<N_TASKS-1; i++){
+        minQuality=max((i - 1) * 12, tasks[i - 1].q_perc + 7);
+        maxQuality= i * 12;
+        /*QualitÃ  in livelli di qualitÃ */
+        tasks[i].q_perc = rand() % (maxQuality + 1 - minQuality) + minQuality;
     }
     tasks[N_TASKS-1].q_perc=100;
 
     for(i = 0; i<N_TASKS; i++)
-      printf("Task %d cost per slot(mAh) : %d , qualita : %d %% \n", i,tasks[i].c_mAh, tasks[i].q_perc);
+      printf("Task %d cost per slot(mAh) : %d , qualita : %3d %% \n", i,tasks[i].c_mAh, tasks[i].q_perc);
 
 }
 
@@ -355,7 +309,7 @@ void loop() {
       
           totalQualityPerc = 0;
           for (i = 0; i < K; i++) totalQualityPerc += tasks[NS[i] - 1].q_perc;
-          printf("\tTotalQPercentage = %f\n", (float)totalQualityPerc / K);
+          printf("\tTotalQPercentage = %3f\n", (float)totalQualityPerc / K);
           
           if (checkQuality(NS,optQ,tasks)) 
               printf("Schedule OK\n"); 
