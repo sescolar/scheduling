@@ -12,7 +12,7 @@ N = 10
 
 
 def generateTasks(K,N):
-	slotDurationPercentage = 24 / K
+    slotDurationPercentage = 24 / K
 	x = (np.arange(N)-1)/10
 	tasks_cost = np.ceil((x * ACTIVE_SYSTEM_CONSUMPTION + (1 - x)*IDLE_SYSTEM_CONSUMPTION)*slotDurationPercentage)
 	tasks_quality = np.linspace(1,100,N,dtype=int)
