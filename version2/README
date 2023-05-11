@@ -1,0 +1,26 @@
+# Compile
+	* Carfagna version:
+		$ g++ main.cc -W -DCARFAGNA -o carfagna
+	* IoT version:
+		$ g++ main.cc -W -o main
+
+# For each test, you should update the params 
+	* K, 
+	* uint16_t *E_h = E_PROD_AUG|E_PROD_SEP|E_PROD_OCT;
+	* BATTERY_SAMPLING (IoT)
+	* MAX_QUALITY_LVL (Carfagna)
+
+# Run the test
+	* Carfagna version
+		$ mkdir -p results/carfagna
+		$ ./carfagna > results/carfagna/out_<K>_<lvl>_<month>.txt
+	* IoT version
+		$ mkdir -p results/IoT
+		$ ./main > results/IoT/out_<K>_<battery_sampling>_<month>.txt
+
+# Run analyze.py
+	* Carfagna version
+		$ python3 analize.py results/carfagna/out_<K>_<lvl>_<month>.txt /results/carfagna/analyze_out_<K>_<lvl>_<month>.txt
+	* IoT version
+		$ python3 analize.py results/IoT/out_<K>_<battery_sampling>_<month>.txt /results/carfagna/analyze_out_<K>_<battery_sampling>_<month>.txt
+	
