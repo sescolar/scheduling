@@ -16,18 +16,19 @@
 
 // parameter for the precision of the classic algorithm 'with sampling'
 // SOLEDAD: Battery Sampling is minimum when BMIN es maximum
-#define BATTERY_SAMPLING_MIN	(BMAX-(BMIN*10))	//minimum = BMAX -BMIN*X = 2000-1600=400 
-#define BATTERY_SAMPLING_MID	(BMAX-(BMIN*5))	//medium =  BMAX -BMIN*X/Y = 2000-800 = 1200
-#define BATTERY_SAMPLING_MAX	(BMAX-BMIN)	//maximum = BMAX -BMIN = 2000-160=1840
+#define BATTERY_SAMPLING_MIN	(BMAX-(BMIN*10))		//minimum = BMAX -BMIN*X = 2000-1600=400 
+#define BATTERY_SAMPLING_MID	(BMAX-(BMIN*5))			//medium =  BMAX -BMIN*X/Y = 2000-800 = 1200
+#define BATTERY_SAMPLING_MAX	(BMAX-BMIN)			//maximum = BMAX -BMIN = 2000-160=1840
 #define BATTERY_SAMPLING  	BATTERY_SAMPLING_MAX		//100, 20(BATTERY_SAMPLING_MID)    
 
 // parameter for the precision of the new algorithm
-#define MAX_QUALITY_LVL	100              // maximum = 100 (it is related to the quality as a percentage)
-
+#define MAX_QUALITY_LVL	100              			// maximum = 100 (it is related to the quality as a percentage)
 
 #define mAh_per_lvl      ((float)(BMAX-BMIN)/BATTERY_SAMPLING)
 #define level_to_mah(l)  short(ceil((l)*(mAh_per_lvl))+BMIN) 
+//Sole: This definition does not work if b=BMIN
 #define mah_to_level(b)  short((b-BMIN)/(mAh_per_lvl))
+//#define mah_to_level(b)  short(min(BMIN/mAh_per_lvl, b-BMIN/mAh_per_lvl))
 
 #define SEED               124
 #define VARIATION            1
@@ -402,11 +403,18 @@ void checkSolution(uint16_t E[K], uint16_t Q)
 #endif    
     q = q + tasks[NS[i]-1].q_perc;  
     assert(NS[i]>0);			//checkFeasibility
+#ifndef CARFAGNA
     Bres_mAh = level_to_mah(BresL);
     Bres_mAh = min(Bres_mAh - tasks[ NS[i]-1 ].c_mAh + E[i], BMAX);
     assert(Bres_mAh >= BMIN);		//checkFeasibility
     BresL = mah_to_level(Bres_mAh);
-  }
+#else
+    Bres_mAh = level_to_mah(BresL);
+    Bres_mAh = min(Bres_mAh - tasks[ NS[i]-1 ].c_mAh + E[i], BMAX);
+    BresL = mah_to_level(Bres_mAh);
+    assert(BresL >= mah_to_level(2*BMIN));		//checkFeasibility
+#endif
+}
   assert(Bres_mAh >= B_INIT);		//checkFeasibility
   assert(q == Q);
 }
